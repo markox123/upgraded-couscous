@@ -34,7 +34,7 @@ body {
   font-weight: bold;
 }
 
-input {
+input, select {
   width: 100%;
   padding: 12px;
   margin: 6px 0;
@@ -83,8 +83,17 @@ button {
 
 <input id="nome" placeholder="Nome do cliente">
 <input id="telefone" placeholder="Telefone">
-<input id="data" type="date">
-<input id="hora" type="time">
+
+<input id="data" type="date" onchange="gerarHorarios()">
+
+<select id="intervalo" onchange="gerarHorarios()">
+  <option value="30">30 minutos</option>
+  <option value="60">1 hora</option>
+</select>
+
+<div id="horarios"></div>
+
+<input id="hora" type="hidden">
 
 <button class="add" onclick="add()">+ Agendar</button>
 
@@ -108,7 +117,7 @@ if (!nomeAgenda) {
 document.getElementById("titulo").innerText = "📅 Agenda da " + nomeAgenda;
 
 /* NOTIFICAÇÃO */
-if ("Notification" in window) {
+if ("Notification" in window && Notification.permission !== "granted") {
   Notification.requestPermission();
 }
 
@@ -125,7 +134,44 @@ function atualizarResumo() {
     `📊 Você tem ${total} cliente(s) hoje`;
 }
 
-/* NOTIFICAÇÃO INTELIGENTE */
+/* GERAR HORÁRIOS */
+function gerarHorarios() {
+  let data = document.getElementById("data").value;
+  let intervalo = parseInt(document.getElementById("intervalo").value);
+  let container = document.getElementById("horarios");
+
+  container.innerHTML = "";
+  if (!data) return;
+
+  let inicio = 8 * 60;
+  let fim = 18 * 60;
+
+  for (let min = inicio; min < fim; min += intervalo) {
+    let h = Math.floor(min / 60).toString().padStart(2,"0");
+    let m = (min % 60).toString().padStart(2,"0");
+    let hora = `${h}:${m}`;
+
+    let ocupado = agenda.some(a => a.data === data && a.hora === hora);
+
+    let btn = document.createElement("button");
+    btn.innerText = hora;
+
+    if (ocupado) {
+      btn.disabled = true;
+      btn.style.background = "#ccc";
+    } else {
+      btn.style.background = "#00c853";
+      btn.style.color = "white";
+      btn.onclick = () => {
+        document.getElementById("hora").value = hora;
+      };
+    }
+
+    container.appendChild(btn);
+  }
+}
+
+/* NOTIFICAÇÃO */
 function agendar(nome, data, hora) {
   let horario = new Date(data + "T" + hora);
   let agora = new Date();
@@ -144,7 +190,7 @@ function agendar(nome, data, hora) {
   if (tempo > 0) {
     setTimeout(() => {
       new Notification("📅 Atendimento agora", {
-        body: `Cliente: ${nome} às ${hora}`
+        body: `${nome} às ${hora}`
       });
     }, tempo);
   }
@@ -152,12 +198,15 @@ function agendar(nome, data, hora) {
 
 /* ADD */
 function add() {
-  let nome = nomeInput.value;
-  let telefone = telefoneInput.value.replace(/\D/g,'');
-  let data = dataInput.value;
-  let hora = horaInput.value;
+  let nome = document.getElementById("nome").value.trim();
+  let telefone = document.getElementById("telefone").value.replace(/\D/g,'');
+  let data = document.getElementById("data").value;
+  let hora = document.getElementById("hora").value;
 
-  if (!nome || !telefone || !data || !hora) return alert("Preencha tudo");
+  if (!nome || !telefone || !data || !hora) {
+    alert("Preencha tudo e escolha um horário");
+    return;
+  }
 
   if (editIndex !== null) {
     agenda[editIndex] = { nome, telefone, data, hora };
@@ -174,11 +223,12 @@ function add() {
 /* EDIT */
 function editar(i) {
   let item = agenda[i];
-  nomeInput.value = item.nome;
-  telefoneInput.value = item.telefone;
-  dataInput.value = item.data;
-  horaInput.value = item.hora;
+  document.getElementById("nome").value = item.nome;
+  document.getElementById("telefone").value = item.telefone;
+  document.getElementById("data").value = item.data;
+  document.getElementById("hora").value = item.hora;
   editIndex = i;
+  gerarHorarios();
 }
 
 /* EXCLUIR */
@@ -221,42 +271,37 @@ function render() {
   atualizarResumo();
 
   let lista = document.getElementById("lista");
-  let busca = search.value.toLowerCase();
+  let busca = document.getElementById("search").value.toLowerCase();
   lista.innerHTML = "";
 
-  let hoje = new Date().toISOString().split("T")[0];
-
-  let hojeList = [];
-  let outros = [];
+  let grupos = {};
 
   agenda.forEach((item,i)=>{
     if (!item.nome.toLowerCase().includes(busca)) return;
 
-    if (item.data === hoje) hojeList.push({...item,i});
-    else outros.push({...item,i});
+    if (!grupos[item.data]) grupos[item.data] = [];
+    grupos[item.data].push({...item,i});
   });
 
-  function montar(titulo, dados) {
-    if (!dados.length) return;
-    lista.innerHTML += `<div class="section">${titulo}</div>`;
+  Object.keys(grupos).sort().forEach(data=>{
+    lista.innerHTML += `<div class="section">📅 ${data}</div>`;
 
-    dados.forEach(item=>{
-      lista.innerHTML += `
-        <div class="card">
-          <b>${item.nome}</b><br>
-          📞 ${item.telefone}<br>
-          📅 ${item.data} ⏰ ${item.hora}<br><br>
+    grupos[data]
+      .sort((a,b)=> a.hora.localeCompare(b.hora))
+      .forEach(item=>{
+        lista.innerHTML += `
+          <div class="card">
+            <b>${item.nome}</b><br>
+            📞 ${item.telefone}<br>
+            ⏰ ${item.hora}<br><br>
 
-          <button class="wpp" onclick="whatsapp('${item.nome}','${item.telefone}','${item.data}','${item.hora}')">Whats</button>
-          <button class="edit" onclick="editar(${item.i})">Editar</button>
-          <button class="del" onclick="excluir(${item.i})">Excluir</button>
-        </div>
-      `;
-    });
-  }
-
-  montar("📌 Hoje", hojeList);
-  montar("📅 Próximos", outros);
+            <button class="wpp" onclick="whatsapp('${item.nome}','${item.telefone}','${item.data}','${item.hora}')">Whats</button>
+            <button class="edit" onclick="editar(${item.i})">Editar</button>
+            <button class="del" onclick="excluir(${item.i})">Excluir</button>
+          </div>
+        `;
+      });
+  });
 }
 
 render();
