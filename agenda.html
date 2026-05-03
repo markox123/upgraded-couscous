@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Agenda Pro</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+/* TOPO */
+.header {
+  padding: 20px;
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+/* CONTAINER */
+.container {
+  background: white;
+  border-radius: 25px 25px 0 0;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+/* INPUTS */
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 6px 0;
+  border-radius: 12px;
+  border: none;
+  background: #f1f3f5;
+}
+
+/* BOTÃO */
+.add {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color: white;
+  font-weight: bold;
+}
+
+/* CARD */
+.card {
+  background: #fff;
+  padding: 15px;
+  margin: 12px 0;
+  border-radius: 15px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+}
+
+.nome {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.info {
+  font-size: 13px;
+  color: #666;
+}
+
+/* BOTÕES */
+.actions {
+  margin-top: 10px;
+}
+
+button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  margin-right: 5px;
+}
+
+.wpp { background: #25d366; color: white; }
+.del { background: #ff4d4d; color: white; }
+
+/* SEÇÃO */
+.section {
+  margin-top: 15px;
+  font-weight: bold;
+  color: #444;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header" id="titulo"></div>
+
+<div class="container">
+
+<input id="nome" placeholder="Nome do cliente">
+<input id="data" type="date">
+<input id="hora" type="time">
+
+<button class="add" onclick="add()">+ Agendar</button>
+
+<div id="lista"></div>
+
+</div>
+
+<script>
+let agenda = JSON.parse(localStorage.getItem("agenda")) || [];
+
+/* 🎨 NOME PERSONALIZADO */
+let nomeAgenda = localStorage.getItem("nomeAgenda");
+if (!nomeAgenda) {
+  nomeAgenda = prompt("Nome da agenda (ex: Maria):");
+  localStorage.setItem("nomeAgenda", nomeAgenda);
+}
+document.getElementById("titulo").innerText = "📅 Agenda da " + nomeAgenda;
+
+/* 🔔 PERMISSÃO */
+if ("Notification" in window) {
+  Notification.requestPermission();
+}
+
+/* 💾 SALVAR */
+function salvar() {
+  localStorage.setItem("agenda", JSON.stringify(agenda));
+}
+
+/* 🔔 NOTIFICAÇÃO */
+function notificar(nome, hora) {
+  new Notification("📅 Lembrete", {
+    body: nome + " às " + hora
+  });
+}
+
+/* ⏰ AGENDAR */
+function agendar(nome, data, hora) {
+  let tempo = new Date(data + "T" + hora) - new Date();
+
+  if (tempo > 0) {
+    setTimeout(() => notificar(nome, hora), tempo);
+  }
+}
+
+/* ➕ ADD */
+function add() {
+  let nome = document.getElementById("nome").value;
+  let data = document.getElementById("data").value;
+  let hora = document.getElementById("hora").value;
+
+  if (!nome || !data || !hora) return alert("Preencha tudo");
+
+  agenda.push({ nome, data, hora });
+
+  salvar();
+  agendar(nome, data, hora);
+  render();
+}
+
+/* 🗑️ */
+function excluir(i) {
+  agenda.splice(i, 1);
+  salvar();
+  render();
+}
+
+/* 📲 WHATSAPP */
+function whatsapp(nome, data, hora) {
+  let msg = `Olá ${nome}, lembrando do seu horário em ${data} às ${hora}`;
+  window.open("https://wa.me/?text=" + encodeURIComponent(msg));
+}
+
+/* 🧠 RENDER */
+function render() {
+  let lista = document.getElementById("lista");
+  lista.innerHTML = "";
+
+  let hoje = new Date().toISOString().split("T")[0];
+
+  let hojeList = agenda.filter(a => a.data === hoje);
+  let outros = agenda.filter(a => a.data !== hoje);
+
+  function montar(titulo, dados) {
+    if (dados.length === 0) return;
+
+    lista.innerHTML += `<div class="section">${titulo}</div>`;
+
+    dados.forEach((item, i) => {
+      lista.innerHTML += `
+        <div class="card">
+          <div class="nome">${item.nome}</div>
+          <div class="info">📅 ${item.data} ⏰ ${item.hora}</div>
+
+          <div class="actions">
+            <button class="wpp" onclick="whatsapp('${item.nome}','${item.data}','${item.hora}')">Whats</button>
+            <button class="del" onclick="excluir(${i})">Excluir</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  montar("📌 Hoje", hojeList);
+  montar("📅 Próximos", outros);
+}
+
+render();
+</script>
+
+</body>
+</html>
