@@ -1,310 +1,114 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agenda Pro</title>
+<title>Plano 21 Dias</title>
 
 <style>
 body {
-  margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-}
-
-.header {
-  padding: 20px;
-  color: white;
-  font-size: 22px;
-  font-weight: bold;
+    font-family: Arial;
+    background: #f4f4f4;
+    margin: 0;
 }
 
 .container {
-  background: white;
-  border-radius: 25px 25px 0 0;
-  padding: 20px;
-  min-height: 100vh;
+    max-width: 400px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    margin-top: 50px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
 }
 
-.stats {
-  background: #f1f3f5;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  font-weight: bold;
+h2 {
+    text-align: center;
 }
 
-input, select {
-  width: 100%;
-  padding: 12px;
-  margin: 6px 0;
-  border-radius: 12px;
-  border: none;
-  background: #f1f3f5;
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
 }
 
 button {
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  margin: 5px 0;
-  width: 100%;
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    background: green;
+    color: white;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
 }
 
-.add { background: #00c853; color: white; }
-.wpp { background: #25d366; color: white; }
-.edit { background: #007bff; color: white; }
-.del { background: #ff4d4d; color: white; }
-
-.card {
-  background: #fff;
-  padding: 15px;
-  margin: 10px 0;
-  border-radius: 15px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+button:hover {
+    opacity: 0.9;
 }
 
-.section {
-  margin-top: 15px;
-  font-weight: bold;
+.whats {
+    background: #25d366;
+}
+
+.result {
+    margin-top: 20px;
+    display: none;
+    background: #e9ffe9;
+    padding: 15px;
+    border-radius: 5px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="header" id="titulo"></div>
-
 <div class="container">
 
-<div class="stats" id="resumo"></div>
+<h2>Descubra quanto pode emagrecer em 21 dias</h2>
 
-<input id="search" placeholder="🔎 Buscar..." oninput="render()">
+<input type="number" id="peso" placeholder="Peso (kg)">
+<input type="number" id="altura" placeholder="Altura (ex: 1.65)">
 
-<input id="nome" placeholder="Nome do cliente">
-<input id="telefone" placeholder="Telefone">
+<button onclick="calcular()">Calcular agora</button>
 
-<input id="data" type="date" onchange="gerarHorarios()">
-
-<select id="intervalo" onchange="gerarHorarios()">
-  <option value="30">30 minutos</option>
-  <option value="60">1 hora</option>
-</select>
-
-<div id="horarios"></div>
-
-<input id="hora" type="hidden">
-
-<button class="add" onclick="add()">+ Agendar</button>
-
-<button onclick="exportar()">📤 Backup</button>
-<input type="file" onchange="importar(event)">
-
-<div id="lista"></div>
+<div class="result" id="resultado"></div>
 
 </div>
 
 <script>
-let agenda = JSON.parse(localStorage.getItem("agenda")) || [];
-let editIndex = null;
+function calcular() {
+    let peso = document.getElementById("peso").value;
+    let altura = document.getElementById("altura").value;
 
-/* NOME */
-let nomeAgenda = localStorage.getItem("nomeAgenda");
-if (!nomeAgenda) {
-  nomeAgenda = prompt("Nome da agenda:");
-  localStorage.setItem("nomeAgenda", nomeAgenda);
-}
-document.getElementById("titulo").innerText = "📅 Agenda da " + nomeAgenda;
-
-/* NOTIFICAÇÃO */
-if ("Notification" in window && Notification.permission !== "granted") {
-  Notification.requestPermission();
-}
-
-/* SALVAR */
-function salvar() {
-  localStorage.setItem("agenda", JSON.stringify(agenda));
-}
-
-/* CONTADOR */
-function atualizarResumo() {
-  let hoje = new Date().toISOString().split("T")[0];
-  let total = agenda.filter(a => a.data === hoje).length;
-  document.getElementById("resumo").innerText =
-    `📊 Você tem ${total} cliente(s) hoje`;
-}
-
-/* GERAR HORÁRIOS */
-function gerarHorarios() {
-  let data = document.getElementById("data").value;
-  let intervalo = parseInt(document.getElementById("intervalo").value);
-  let container = document.getElementById("horarios");
-
-  container.innerHTML = "";
-  if (!data) return;
-
-  let inicio = 8 * 60;
-  let fim = 18 * 60;
-
-  for (let min = inicio; min < fim; min += intervalo) {
-    let h = Math.floor(min / 60).toString().padStart(2,"0");
-    let m = (min % 60).toString().padStart(2,"0");
-    let hora = `${h}:${m}`;
-
-    let ocupado = agenda.some(a => a.data === data && a.hora === hora);
-
-    let btn = document.createElement("button");
-    btn.innerText = hora;
-
-    if (ocupado) {
-      btn.disabled = true;
-      btn.style.background = "#ccc";
-    } else {
-      btn.style.background = "#00c853";
-      btn.style.color = "white";
-      btn.onclick = () => {
-        document.getElementById("hora").value = hora;
-      };
+    if (!peso || !altura) {
+        alert("Preencha todos os dados");
+        return;
     }
 
-    container.appendChild(btn);
-  }
+    let perda = (peso * 0.04).toFixed(1);
+
+    document.getElementById("resultado").style.display = "block";
+    document.getElementById("resultado").innerHTML = `
+        <h3>Resultado:</h3>
+        <p>Você pode perder até <b>${perda} kg em 21 dias</b></p>
+        <p>Plano simples, sem academia e fácil de seguir.</p>
+
+        <button onclick="comprar()">💰 Quero meu plano completo</button>
+        <button class="whats" onclick="whatsapp()">📲 Falar no WhatsApp</button>
+    `;
 }
 
-/* NOTIFICAÇÃO */
-function agendar(nome, data, hora) {
-  let horario = new Date(data + "T" + hora);
-  let agora = new Date();
-
-  let tempo = horario - agora;
-  let antes = tempo - (10 * 60 * 1000);
-
-  if (antes > 0) {
-    setTimeout(() => {
-      new Notification("⏰ Atendimento chegando", {
-        body: `${nome} às ${hora} em 10 minutos`
-      });
-    }, antes);
-  }
-
-  if (tempo > 0) {
-    setTimeout(() => {
-      new Notification("📅 Atendimento agora", {
-        body: `${nome} às ${hora}`
-      });
-    }, tempo);
-  }
+function comprar() {
+    window.location.href = "https://mpago.la/1XZw8Z5";
 }
 
-/* ADD */
-function add() {
-  let nome = document.getElementById("nome").value.trim();
-  let telefone = document.getElementById("telefone").value.replace(/\D/g,'');
-  let data = document.getElementById("data").value;
-  let hora = document.getElementById("hora").value;
-
-  if (!nome || !telefone || !data || !hora) {
-    alert("Preencha tudo e escolha um horário");
-    return;
-  }
-
-  if (editIndex !== null) {
-    agenda[editIndex] = { nome, telefone, data, hora };
-    editIndex = null;
-  } else {
-    agenda.push({ nome, telefone, data, hora });
-  }
-
-  salvar();
-  agendar(nome, data, hora);
-  render();
+function whatsapp() {
+    let mensagem = "Oi, fiz o cálculo no site e quero o plano de 21 dias";
+    let url = "https://wa.me/5594991461505?text=" + encodeURIComponent(mensagem);
+    window.location.href = url;
 }
-
-/* EDIT */
-function editar(i) {
-  let item = agenda[i];
-  document.getElementById("nome").value = item.nome;
-  document.getElementById("telefone").value = item.telefone;
-  document.getElementById("data").value = item.data;
-  document.getElementById("hora").value = item.hora;
-  editIndex = i;
-  gerarHorarios();
-}
-
-/* EXCLUIR */
-function excluir(i) {
-  if (confirm("Excluir?")) {
-    agenda.splice(i,1);
-    salvar();
-    render();
-  }
-}
-
-/* WHATS */
-function whatsapp(nome, telefone, data, hora) {
-  let msg = `Olá ${nome}, seu horário é ${data} às ${hora}`;
-  window.open(`https://wa.me/55${telefone}?text=${encodeURIComponent(msg)}`);
-}
-
-/* BACKUP */
-function exportar() {
-  let blob = new Blob([JSON.stringify(agenda)], {type:"application/json"});
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "backup.json";
-  a.click();
-}
-
-function importar(e) {
-  let file = e.target.files[0];
-  let reader = new FileReader();
-  reader.onload = () => {
-    agenda = JSON.parse(reader.result);
-    salvar();
-    render();
-  };
-  reader.readAsText(file);
-}
-
-/* RENDER */
-function render() {
-  atualizarResumo();
-
-  let lista = document.getElementById("lista");
-  let busca = document.getElementById("search").value.toLowerCase();
-  lista.innerHTML = "";
-
-  let grupos = {};
-
-  agenda.forEach((item,i)=>{
-    if (!item.nome.toLowerCase().includes(busca)) return;
-
-    if (!grupos[item.data]) grupos[item.data] = [];
-    grupos[item.data].push({...item,i});
-  });
-
-  Object.keys(grupos).sort().forEach(data=>{
-    lista.innerHTML += `<div class="section">📅 ${data}</div>`;
-
-    grupos[data]
-      .sort((a,b)=> a.hora.localeCompare(b.hora))
-      .forEach(item=>{
-        lista.innerHTML += `
-          <div class="card">
-            <b>${item.nome}</b><br>
-            📞 ${item.telefone}<br>
-            ⏰ ${item.hora}<br><br>
-
-            <button class="wpp" onclick="whatsapp('${item.nome}','${item.telefone}','${item.data}','${item.hora}')">Whats</button>
-            <button class="edit" onclick="editar(${item.i})">Editar</button>
-            <button class="del" onclick="excluir(${item.i})">Excluir</button>
-          </div>
-        `;
-      });
-  });
-}
-
-render();
 </script>
 
 </body>
